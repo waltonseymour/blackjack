@@ -6,6 +6,8 @@ trait BJValue {
     fn is_bust(&self) -> bool {
         self.value() > 21
     }
+
+    fn is_blackjack(&self) -> bool;
 }
 
 impl BJValue for Hand {
@@ -24,6 +26,10 @@ impl BJValue for Hand {
         } else {
             total
         }
+    }
+
+    fn is_blackjack(&self) -> bool {
+        self.value() == 21 && self.cards.len() == 2
     }
 }
 
@@ -113,6 +119,12 @@ fn play_hand(deck: &mut Deck) {
 
     let mut hand = Hand::new();
     deck.deal_to_hand(&mut hand, 2);
+
+    if hand.is_blackjack() {
+        println!("player hand: {} ({})", hand, hand.value());
+        println!("{:?}", Outcome::BlackJack);
+        return;
+    }
 
     loop {
         println!("{} ({})", hand, hand.value());
