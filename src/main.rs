@@ -71,8 +71,13 @@ enum Action {
     Surrender,
 }
 
-fn get_user_action() -> Action {
-    println!("H for hit\nS for stand");
+fn get_user_action(is_first_draw: bool) -> Action {
+    if is_first_draw {
+        println!("H for hit\nS for stand\nD for Double down");
+    } else {
+        println!("H for hit\nS for stand");
+    }
+
     let mut user_input = String::new();
     std::io::stdin()
         .read_line(&mut user_input)
@@ -81,7 +86,8 @@ fn get_user_action() -> Action {
     match user_input.trim() {
         "H" => Action::Hit,
         "S" => Action::Stand,
-        _ => get_user_action(),
+        "D" => Action::DoubleDown,
+        _ => get_user_action(false),
     }
 }
 
@@ -126,6 +132,8 @@ fn play_hand(deck: &mut Deck) {
         return;
     }
 
+    let mut first = true;
+
     loop {
         println!("{} ({})", hand, hand.value());
 
@@ -133,14 +141,19 @@ fn play_hand(deck: &mut Deck) {
             break;
         }
 
-        let action = get_user_action();
+        let action = get_user_action(first);
+
+        first = false;
 
         match action {
             Action::Hit => {
                 deck.deal_to_hand(&mut hand, 1);
             }
             Action::Stand => break,
-            Action::DoubleDown => todo!(),
+            Action::DoubleDown => {
+                deck.deal_to_hand(&mut hand, 1);
+                break;
+            }
             Action::Surrender => todo!(),
         }
     }
@@ -164,7 +177,6 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]
