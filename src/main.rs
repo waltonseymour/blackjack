@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use deckofcards::{Card, Cards, Deck, Hand, Rank};
 
 trait BJValue {
@@ -91,7 +93,7 @@ fn get_user_action(is_first_draw: bool) -> Action {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 enum Outcome {
     Push,
     Win,
@@ -170,9 +172,43 @@ fn play_hand(deck: &mut Deck) {
     println!("{:?}", outcome);
 }
 
+fn simulate_hand(deck: &mut Deck) {
+    let mut outcome_map: HashMap<Outcome, u32> = HashMap::new();
+
+    for _ in 0..100000 {
+        let mut dealer_hand = Hand::from_cards(&[Card::from_str("2C").unwrap()]);
+
+        let player_hand =
+            Hand::from_cards(&[Card::from_str("KS").unwrap(), Card::from_str("6S").unwrap()]);
+
+        while !player_hand.is_bust() && !dealer_hand.is_bust() && dealer_hand.value() < 17 {
+            deck.deal_to_hand(&mut dealer_hand, 1);
+        }
+
+        let outcome = get_outcome(&dealer_hand, &player_hand);
+
+        *outcome_map.entry(outcome).or_insert(0) += 1;
+
+        deck.reset_shuffle();
+    }
+
+    println!(
+        "win:  {}",
+        *outcome_map.get(&Outcome::Win).unwrap() as f32 / 100000.0
+    );
+    println!(
+        "loss: {}",
+        *outcome_map.get(&Outcome::Loss).unwrap() as f32 / 100000.0
+    );
+    println!(
+        "push: {}",
+        *outcome_map.get(&Outcome::Push).unwrap_or(&0) as f32 / 100000.0
+    );
+}
+
 fn main() {
     let mut deck = build_deck();
-    play_hand(&mut deck);
+    play_hand(&mut deck)
 }
 
 #[cfg(test)]
