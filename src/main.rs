@@ -1,15 +1,29 @@
 use deckofcards::{Card, Cards, Deck, Hand, Rank};
 
-#[derive(Debug)]
-struct Value {
-    // if is_soft is true, then (value - 10) is also possible due to an ace
-    is_soft: bool,
-    value: u8,
+trait BJValue {
+    fn value(&self) -> u8;
+
+    fn is_bust(&self) -> bool {
+        self.value() > 21
+    }
 }
 
-impl Value {
-    fn is_bust(&self) -> bool {
-        self.value > 21
+impl BJValue for Hand {
+    fn value(&self) -> u8 {
+        let mut total = 0;
+        let mut is_soft = false;
+        for card in self.cards() {
+            total += rank_to_u8(card.rank);
+            if card.rank == Rank::Ace {
+                is_soft = true;
+            }
+        }
+
+        if total > 21 && is_soft {
+            total - 10
+        } else {
+            total
+        }
     }
 }
 
@@ -25,29 +39,6 @@ fn rank_to_u8(rank: Rank) -> u8 {
         Rank::Nine => 9,
         Rank::Ace => 11,
         _ => 10,
-    }
-}
-
-fn hand_value(hand: &Hand) -> Value {
-    let mut total = 0;
-    let mut is_soft = false;
-    for card in hand.cards() {
-        total += rank_to_u8(card.rank);
-        if card.rank == Rank::Ace {
-            is_soft = true;
-        }
-    }
-
-    if total > 21 && is_soft {
-        return Value {
-            is_soft: false,
-            value: total - 10,
-        };
-    }
-
-    Value {
-        is_soft,
-        value: total,
     }
 }
 
@@ -98,18 +89,15 @@ enum Outcome {
 }
 
 fn get_outcome(dealer_hand: &Hand, player_hand: &Hand) -> Outcome {
-    let player_value = &hand_value(player_hand);
-    let dealer_value = &hand_value(dealer_hand);
-
-    if player_value.is_bust() {
+    if player_hand.is_bust() {
         return Outcome::Loss;
-    } else if dealer_value.is_bust() {
+    } else if dealer_hand.is_bust() {
         return Outcome::Win;
     }
 
-    if dealer_value.value > player_value.value {
+    if dealer_hand.value() > player_hand.value() {
         Outcome::Loss
-    } else if player_value.value > dealer_value.value {
+    } else if player_hand.value() > dealer_hand.value() {
         Outcome::Win
     } else {
         Outcome::Push
@@ -121,20 +109,15 @@ fn play_hand(deck: &mut Deck) {
 
     deck.deal_to_hand(&mut dealer_hand, 1);
 
-    println!(
-        "dealer showing: {} ({})",
-        dealer_hand,
-        hand_value(&dealer_hand).value
-    );
+    println!("dealer showing: {} ({})", dealer_hand, dealer_hand.value());
 
     let mut hand = Hand::new();
     deck.deal_to_hand(&mut hand, 2);
 
     loop {
-        let value = hand_value(&hand);
-        println!("{} ({})", hand, value.value);
+        println!("{} ({})", hand, hand.value());
 
-        if value.is_bust() {
+        if hand.is_bust() {
             break;
         }
 
@@ -150,21 +133,14 @@ fn play_hand(deck: &mut Deck) {
         }
     }
 
-    while !hand_value(&hand).is_bust()
-        && !hand_value(&dealer_hand).is_bust()
-        && hand_value(&dealer_hand).value < 17
-    {
+    while !hand.is_bust() && !dealer_hand.is_bust() && dealer_hand.value() < 17 {
         deck.deal_to_hand(&mut dealer_hand, 1);
     }
 
     let outcome = get_outcome(&dealer_hand, &hand);
 
-    println!(
-        "dealer hand: {} ({})",
-        dealer_hand,
-        hand_value(&dealer_hand).value
-    );
-    println!("player hand: {} ({})", hand, hand_value(&hand).value);
+    println!("dealer hand: {} ({})", dealer_hand, dealer_hand.value());
+    println!("player hand: {} ({})", hand, hand.value());
 
     println!("{:?}", outcome);
 }
@@ -191,11 +167,8 @@ mod tests {
 
         let hand = Hand::from_cards(&cards);
 
-        let value = hand_value(&hand);
-
-        assert_eq!(value.is_bust(), false);
-        assert_eq!(value.value, 12);
-        assert_eq!(value.is_soft, false);
+        assert_eq!(hand.is_bust(), false);
+        assert_eq!(hand.value(), 12);
     }
 
     #[test]
