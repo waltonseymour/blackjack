@@ -15,6 +15,12 @@ struct Value {
     value: u8,
 }
 
+impl Value {
+    fn is_bust(self) -> bool {
+        self.value > 21
+    }
+}
+
 fn rank_to_u8(rank: Rank) -> u8 {
     match rank {
         Rank::Two => 2,
@@ -62,14 +68,56 @@ fn build_deck() -> Deck {
     deck
 }
 
+enum Action {
+    Hit,
+    Stand,
+    DoubleDown,
+    Surrender,
+}
+
+fn get_user_action() -> Action {
+    println!("H for hit\nS for stand");
+    let mut user_input = String::new();
+    std::io::stdin()
+        .read_line(&mut user_input)
+        .expect("Failed to read input");
+
+    match user_input.trim() {
+        "H" => Action::Hit,
+        "S" => Action::Stand,
+        _ => get_user_action(),
+    }
+}
+
 fn main() {
     let mut deck = build_deck();
+
+    let mut dealer_hand = Hand::new();
+
+    deck.deal_to_hand(&mut dealer_hand, 1);
+
+    println!("dealer showing: {}", dealer_hand);
 
     let mut hand = Hand::new();
     deck.deal_to_hand(&mut hand, 2);
 
-    let value = hand_value(&hand);
+    loop {
+        let value = hand_value(&hand);
+        println!("{}", hand);
 
-    println!("{}", hand);
-    println!("{:?}", value);
+        if value.is_bust() {
+            break;
+        }
+
+        let action = get_user_action();
+
+        match action {
+            Action::Hit => {
+                deck.deal_to_hand(&mut hand, 1);
+            }
+            Action::Stand => todo!(),
+            Action::DoubleDown => todo!(),
+            Action::Surrender => todo!(),
+        }
+    }
 }
