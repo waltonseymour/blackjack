@@ -38,6 +38,13 @@ fn hand_value(hand: &Hand) -> Value {
         }
     }
 
+    if total > 21 && is_soft {
+        return Value {
+            is_soft: false,
+            value: total - 10,
+        };
+    }
+
     Value {
         is_soft,
         value: total,
@@ -81,7 +88,7 @@ fn get_user_action() -> Action {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum Outcome {
     Push,
     Win,
@@ -94,9 +101,15 @@ fn get_outcome(dealer_hand: &Hand, player_hand: &Hand) -> Outcome {
     let player_value = &hand_value(player_hand);
     let dealer_value = &hand_value(dealer_hand);
 
-    if player_value.is_bust() || dealer_value.value > player_value.value {
+    if player_value.is_bust() {
+        return Outcome::Loss;
+    } else if dealer_value.is_bust() {
+        return Outcome::Win;
+    }
+
+    if dealer_value.value > player_value.value {
         Outcome::Loss
-    } else if dealer_value.is_bust() || player_value.value > dealer_value.value {
+    } else if player_value.value > dealer_value.value {
         Outcome::Win
     } else {
         Outcome::Push
@@ -108,14 +121,18 @@ fn play_hand(deck: &mut Deck) {
 
     deck.deal_to_hand(&mut dealer_hand, 1);
 
-    println!("dealer showing: {}", dealer_hand);
+    println!(
+        "dealer showing: {} ({})",
+        dealer_hand,
+        hand_value(&dealer_hand).value
+    );
 
     let mut hand = Hand::new();
     deck.deal_to_hand(&mut hand, 2);
 
     loop {
         let value = hand_value(&hand);
-        println!("{}", hand);
+        println!("{} ({})", hand, value.value);
 
         if value.is_bust() {
             break;
@@ -142,8 +159,12 @@ fn play_hand(deck: &mut Deck) {
 
     let outcome = get_outcome(&dealer_hand, &hand);
 
-    println!("dealer hand: {}", dealer_hand,);
-    println!("player hand: {}", hand);
+    println!(
+        "dealer hand: {} ({})",
+        dealer_hand,
+        hand_value(&dealer_hand).value
+    );
+    println!("player hand: {} ({})", hand, hand_value(&hand).value);
 
     println!("{:?}", outcome);
 }
@@ -151,4 +172,51 @@ fn play_hand(deck: &mut Deck) {
 fn main() {
     let mut deck = build_deck();
     play_hand(&mut deck);
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_hand_value() {
+        // 4C,4D,2H,3C,AC
+        let cards = [
+            Card::from_str("4C").unwrap(),
+            Card::from_str("4D").unwrap(),
+            Card::from_str("3C").unwrap(),
+            Card::from_str("AC").unwrap(),
+        ];
+
+        let hand = Hand::from_cards(&cards);
+
+        let value = hand_value(&hand);
+
+        assert_eq!(value.is_bust(), false);
+        assert_eq!(value.value, 12);
+        assert_eq!(value.is_soft, false);
+    }
+
+    #[test]
+    fn test_outome() {
+        // 2S,6C,2S,JS
+        let player_hand = Hand::from_cards(&[
+            Card::from_str("2S").unwrap(),
+            Card::from_str("6C").unwrap(),
+            Card::from_str("2S").unwrap(),
+            Card::from_str("JS").unwrap(),
+        ]);
+
+        // 5C,KC,KD
+        let dealer_hand = Hand::from_cards(&[
+            Card::from_str("5C").unwrap(),
+            Card::from_str("KC").unwrap(),
+            Card::from_str("KD").unwrap(),
+        ]);
+
+        let outcome = get_outcome(&dealer_hand, &player_hand);
+
+        assert_eq!(outcome, Outcome::Win);
+    }
 }
