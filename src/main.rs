@@ -1,4 +1,4 @@
-use deckofcards::{Cards, Deck, Hand, Rank};
+use deckofcards::{Card, Cards, Deck, Hand, Rank};
 
 enum Outcome {
     Push,
@@ -46,9 +46,24 @@ fn hand_value(hand: &Hand) -> Value {
     }
 }
 
-fn main() {
-    let mut deck = Deck::new();
+fn build_deck() -> Deck {
+    // four decks
+    let cards = [
+        Card::all_cards(),
+        Card::all_cards(),
+        Card::all_cards(),
+        Card::all_cards(),
+    ]
+    .concat();
+
+    let mut deck = Deck::from_cards(&cards);
     deck.shuffle();
+
+    deck
+}
+
+fn main() {
+    let mut deck = build_deck();
 
     let mut hand = Hand::new();
     deck.deal_to_hand(&mut hand, 2);
