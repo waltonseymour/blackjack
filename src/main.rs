@@ -1,3 +1,5 @@
+mod probability;
+
 use std::collections::HashMap;
 
 use deckofcards::{Card, Cards, Deck, Hand, Rank};
