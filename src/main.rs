@@ -130,7 +130,7 @@ fn get_outcome(dealer_hand: &Hand, player_hand: &Hand) -> Outcome {
     }
 }
 
-fn play_hand(deck: &mut Deck) {
+fn play_hand(deck: &mut Deck) -> Outcome {
     let mut dealer_hand = Hand::new();
 
     deck.deal_to_hand(&mut dealer_hand, 1);
@@ -141,9 +141,18 @@ fn play_hand(deck: &mut Deck) {
     deck.deal_to_hand(&mut hand, 2);
 
     if hand.is_blackjack() {
+        // check for dealer blackjack
+        if (dealer_hand.value() >= 10) {
+            deck.deal_to_hand(&mut dealer_hand, 1);
+
+            if (dealer_hand.is_blackjack()) {
+                return Outcome::Push;
+            }
+        }
+
         println!("player hand: {} ({})", hand, hand.value());
         println!("{:?}", Outcome::BlackJack);
-        return;
+        return Outcome::BlackJack;
     }
 
     loop {
@@ -169,8 +178,7 @@ fn play_hand(deck: &mut Deck) {
                 deck.deal_to_hand(&mut hand, 1);
                 break;
             }
-            Action::Surrender => todo!(),
-            Action::Split => todo!(),
+            _ => todo!(),
         }
     }
 
@@ -184,11 +192,13 @@ fn play_hand(deck: &mut Deck) {
     println!("player hand: {} ({})", hand, hand.value());
 
     println!("{:?}", outcome);
+
+    outcome
 }
 
 fn main() {
     let mut deck = build_deck();
-    play_hand(&mut deck)
+    play_hand(&mut deck);
 }
 
 #[cfg(test)]
