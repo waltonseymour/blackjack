@@ -1,8 +1,6 @@
 mod probability;
-
-use std::collections::HashMap;
-
 use deckofcards::{Card, Cards, Deck, Hand, Rank};
+use probability::BJProbability;
 
 trait BJValue {
     fn value(&self) -> u8;
@@ -72,12 +70,24 @@ enum Action {
     Hit,
     Stand,
     DoubleDown,
+    Split,
     Surrender,
 }
 
-fn get_user_action(is_first_draw: bool) -> Action {
-    if is_first_draw {
-        println!("H for hit\nS for stand\nD for Double down");
+fn can_split(player_hand: &Hand) -> bool {
+    player_hand.len() == 2
+        && player_hand.cards.get(0).unwrap().rank == player_hand.cards.get(1).unwrap().rank
+        // can't split on aces
+        && player_hand.cards.get(0).unwrap().rank != Rank::Ace
+}
+
+fn get_user_action(player_hand: &Hand) -> Action {
+    if player_hand.len() == 2 {
+        if (can_split(player_hand)) {
+            println!("H for hit\nS for stand\nD for Double down\nP for Split\nR for Surrender");
+        } else {
+            println!("H for hit\nS for stand\nD for Double down\nR for Surrender");
+        }
     } else {
         println!("H for hit\nS for stand");
     }
@@ -91,7 +101,7 @@ fn get_user_action(is_first_draw: bool) -> Action {
         "H" => Action::Hit,
         "S" => Action::Stand,
         "D" => Action::DoubleDown,
-        _ => get_user_action(false),
+        _ => get_user_action(player_hand),
     }
 }
 
@@ -136,18 +146,19 @@ fn play_hand(deck: &mut Deck) {
         return;
     }
 
-    let mut first = true;
-
     loop {
-        println!("{} ({})", hand, hand.value());
+        println!(
+            "{} ({}) bust probability: {:.3}",
+            hand,
+            hand.value(),
+            hand.probability_of_bust()
+        );
 
         if hand.is_bust() {
             break;
         }
 
-        let action = get_user_action(first);
-
-        first = false;
+        let action = get_user_action(&hand);
 
         match action {
             Action::Hit => {
@@ -159,6 +170,7 @@ fn play_hand(deck: &mut Deck) {
                 break;
             }
             Action::Surrender => todo!(),
+            Action::Split => todo!(),
         }
     }
 
@@ -172,40 +184,6 @@ fn play_hand(deck: &mut Deck) {
     println!("player hand: {} ({})", hand, hand.value());
 
     println!("{:?}", outcome);
-}
-
-fn simulate_hand(deck: &mut Deck) {
-    let mut outcome_map: HashMap<Outcome, u32> = HashMap::new();
-
-    for _ in 0..100000 {
-        let mut dealer_hand = Hand::from_cards(&[Card::from_str("2C").unwrap()]);
-
-        let player_hand =
-            Hand::from_cards(&[Card::from_str("KS").unwrap(), Card::from_str("6S").unwrap()]);
-
-        while !player_hand.is_bust() && !dealer_hand.is_bust() && dealer_hand.value() < 17 {
-            deck.deal_to_hand(&mut dealer_hand, 1);
-        }
-
-        let outcome = get_outcome(&dealer_hand, &player_hand);
-
-        *outcome_map.entry(outcome).or_insert(0) += 1;
-
-        deck.reset_shuffle();
-    }
-
-    println!(
-        "win:  {}",
-        *outcome_map.get(&Outcome::Win).unwrap() as f32 / 100000.0
-    );
-    println!(
-        "loss: {}",
-        *outcome_map.get(&Outcome::Loss).unwrap() as f32 / 100000.0
-    );
-    println!(
-        "push: {}",
-        *outcome_map.get(&Outcome::Push).unwrap_or(&0) as f32 / 100000.0
-    );
 }
 
 fn main() {
@@ -235,6 +213,28 @@ mod tests {
 
     #[test]
     fn test_outome() {
+        // 2S,6C,2S,JS
+        let player_hand = Hand::from_cards(&[
+            Card::from_str("2S").unwrap(),
+            Card::from_str("6C").unwrap(),
+            Card::from_str("2S").unwrap(),
+            Card::from_str("JS").unwrap(),
+        ]);
+
+        // 5C,KC,KD
+        let dealer_hand = Hand::from_cards(&[
+            Card::from_str("5C").unwrap(),
+            Card::from_str("KC").unwrap(),
+            Card::from_str("KD").unwrap(),
+        ]);
+
+        let outcome = get_outcome(&dealer_hand, &player_hand);
+
+        assert_eq!(outcome, Outcome::Win);
+    }
+
+    #[test]
+    fn test_blakjack() {
         // 2S,6C,2S,JS
         let player_hand = Hand::from_cards(&[
             Card::from_str("2S").unwrap(),

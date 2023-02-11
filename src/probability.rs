@@ -2,7 +2,7 @@ use deckofcards::Hand;
 
 use crate::BJValue;
 
-trait BJProbability {
+pub trait BJProbability {
     fn probability_of_bust(&self) -> f64;
 }
 
