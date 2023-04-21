@@ -153,18 +153,14 @@ fn get_outcome(dealer_hand: &Hand, player_hand: &Hand) -> Outcome {
 }
 
 fn play_hand(deck: &mut Deck) {
-    let mut hand = Hand::new();
-    deck.deal_to_hand(&mut hand, 2);
-
-    if !can_split(&hand) {
-        return;
-    }
-
     let mut dealer_hand = Hand::new();
 
     deck.deal_to_hand(&mut dealer_hand, 1);
 
     println!("dealer showing: {} ({})", dealer_hand, dealer_hand.value());
+
+    let mut hand = Hand::new();
+    deck.deal_to_hand(&mut hand, 2);
 
     if hand.is_blackjack() {
         // check for dealer blackjack
