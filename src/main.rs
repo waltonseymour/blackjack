@@ -5,6 +5,8 @@ use probability::BJProbability;
 trait BJValue {
     fn value(&self) -> u8;
 
+    fn is_soft(&self) -> bool;
+
     fn is_bust(&self) -> bool {
         self.value() > 21
     }
@@ -28,6 +30,23 @@ impl BJValue for Hand {
         } else {
             total
         }
+    }
+
+    fn is_soft(&self) -> bool {
+        let mut total = 0;
+        let mut is_soft = false;
+        for card in self.cards() {
+            total += rank_to_u8(card.rank);
+            if card.rank == Rank::Ace {
+                is_soft = true;
+            }
+        }
+
+        if total > 21 && is_soft {
+            return false;
+        }
+
+        is_soft
     }
 
     fn is_blackjack(&self) -> bool {
@@ -66,6 +85,7 @@ fn build_deck() -> Deck {
     deck
 }
 
+#[derive(Debug, PartialEq, Eq, Hash)]
 enum Action {
     Hit,
     Stand,
@@ -101,6 +121,7 @@ fn get_user_action(player_hand: &Hand) -> Action {
         "H" => Action::Hit,
         "S" => Action::Stand,
         "D" => Action::DoubleDown,
+        "R" => Action::Surrender,
         _ => get_user_action(player_hand),
     }
 }
@@ -130,7 +151,7 @@ fn get_outcome(dealer_hand: &Hand, player_hand: &Hand) -> Outcome {
     }
 }
 
-fn play_hand(deck: &mut Deck) -> Outcome {
+fn play_hand(deck: &mut Deck) {
     let mut dealer_hand = Hand::new();
 
     deck.deal_to_hand(&mut dealer_hand, 1);
@@ -146,59 +167,111 @@ fn play_hand(deck: &mut Deck) -> Outcome {
             deck.deal_to_hand(&mut dealer_hand, 1);
 
             if (dealer_hand.is_blackjack()) {
-                return Outcome::Push;
+                return;
             }
         }
 
         println!("player hand: {} ({})", hand, hand.value());
         println!("{:?}", Outcome::BlackJack);
-        return Outcome::BlackJack;
+        return;
     }
 
-    loop {
-        println!(
-            "{} ({}) bust probability: {:.3}",
-            hand,
-            hand.value(),
-            hand.probability_of_bust()
-        );
+    println!("{} ({} hard: {})", hand, hand.value(), !hand.is_soft());
 
-        if hand.is_bust() {
-            break;
-        }
+    let correct_action = get_correct_action(&hand, &dealer_hand);
 
-        let action = get_user_action(&hand);
+    let user_action = get_user_action(&hand);
 
-        match action {
-            Action::Hit => {
-                deck.deal_to_hand(&mut hand, 1);
-            }
-            Action::Stand => break,
-            Action::DoubleDown => {
-                deck.deal_to_hand(&mut hand, 1);
-                break;
-            }
-            _ => todo!(),
-        }
+    if user_action == correct_action {
+        println!("\ncorrect\n");
+    } else {
+        println!("\nincorrect! correct action was: {:?}\n", correct_action);
     }
-
-    while !hand.is_bust() && !dealer_hand.is_bust() && dealer_hand.value() < 17 {
-        deck.deal_to_hand(&mut dealer_hand, 1);
-    }
-
-    let outcome = get_outcome(&dealer_hand, &hand);
-
-    println!("dealer hand: {} ({})", dealer_hand, dealer_hand.value());
-    println!("player hand: {} ({})", hand, hand.value());
-
-    println!("{:?}", outcome);
-
-    outcome
 }
 
 fn main() {
     let mut deck = build_deck();
-    play_hand(&mut deck);
+    loop {
+        play_hand(&mut deck);
+    }
+}
+
+fn get_correct_action(player_hand: &Hand, dealer_hand: &Hand) -> Action {
+    let dealer_value = dealer_hand.value();
+
+    let player_value = player_hand.value();
+
+    if !player_hand.is_soft() {
+        // hard totals
+
+        // hard 17+ stand always
+        if player_value >= 17 {
+            return Action::Stand;
+        }
+
+        // hard 13-17
+        if player_value >= 13 && player_value < 17 {
+            if dealer_value < 7 {
+                return Action::Stand;
+            }
+        }
+
+        // hard 12
+        if player_value == 12 {
+            if dealer_value >= 4 && dealer_value <= 6 {
+                return Action::Stand;
+            }
+        }
+
+        // hard 11, 10, 9
+        if player_value == 11
+            || (player_value == 10 && dealer_value < 10)
+            || (player_value == 9 && dealer_value >= 3 && dealer_value <= 6)
+        {
+            return Action::DoubleDown;
+        }
+
+        //surrender
+
+        if player_value == 15 && dealer_value == 10 {
+            return Action::Surrender;
+        }
+
+        if player_value == 16 && dealer_value >= 9 {
+            return Action::Surrender;
+        }
+    } else {
+        // soft totals
+
+        // soft 19/20 stands
+        if player_value >= 19 {
+            return Action::Stand;
+        }
+
+        if player_value == 18 {
+            if dealer_value == 7 && dealer_value == 8 {
+                return Action::Stand;
+            }
+
+            if dealer_value < 7 {
+                return Action::DoubleDown;
+            }
+        }
+
+        if player_value == 17 && dealer_value >= 3 && dealer_value <= 6 {
+            return Action::DoubleDown;
+        }
+
+        if (player_value == 16 || player_value == 15) && dealer_value >= 4 && dealer_value <= 6 {
+            return Action::DoubleDown;
+        }
+
+        if (player_value == 13 || player_value == 14) && dealer_value >= 5 && dealer_value <= 6 {
+            return Action::DoubleDown;
+        }
+    }
+
+    Action::Hit
 }
 
 #[cfg(test)]
