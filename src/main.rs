@@ -122,6 +122,7 @@ fn get_user_action(player_hand: &Hand) -> Action {
         "S" => Action::Stand,
         "D" => Action::DoubleDown,
         "R" => Action::Surrender,
+        "P" => Action::Split,
         _ => get_user_action(player_hand),
     }
 }
@@ -152,14 +153,18 @@ fn get_outcome(dealer_hand: &Hand, player_hand: &Hand) -> Outcome {
 }
 
 fn play_hand(deck: &mut Deck) {
+    let mut hand = Hand::new();
+    deck.deal_to_hand(&mut hand, 2);
+
+    if !can_split(&hand) {
+        return;
+    }
+
     let mut dealer_hand = Hand::new();
 
     deck.deal_to_hand(&mut dealer_hand, 1);
 
     println!("dealer showing: {} ({})", dealer_hand, dealer_hand.value());
-
-    let mut hand = Hand::new();
-    deck.deal_to_hand(&mut hand, 2);
 
     if hand.is_blackjack() {
         // check for dealer blackjack
@@ -200,6 +205,29 @@ fn get_correct_action(player_hand: &Hand, dealer_hand: &Hand) -> Action {
     let dealer_value = dealer_hand.value();
 
     let player_value = player_hand.value();
+
+    if can_split(player_hand) {
+        // two aces or two 8s
+        if player_value == 2 || player_value == 16 {
+            return Action::Split;
+        }
+
+        if player_value == 18 && dealer_value != 7 && dealer_value != 10 && dealer_value != 11 {
+            return Action::Split;
+        }
+
+        if player_value == 14 && dealer_value < 8 {
+            return Action::Split;
+        }
+
+        if player_value == 12 && dealer_value < 7 {
+            return Action::Split;
+        }
+
+        if (player_value == 6 || player_value == 4) && (dealer_value >= 4 && dealer_value <= 7) {
+            return Action::Split;
+        }
+    }
 
     if !player_hand.is_soft() {
         // hard totals
